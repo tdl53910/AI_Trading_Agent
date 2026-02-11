@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🤖 AI Trading Agent - Survival Mode</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3.3.0/dist/chartjs-chart-financial.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
     <style>
         :root {
@@ -374,10 +373,6 @@
                 <h3>📈 PROFIT/LOSS PER TRADE</h3>
                 <canvas id="performanceChart"></canvas>
             </div>
-            <div class="chart-card">
-                <h3>🕯️ TRADE PRICE (CANDLE)</h3>
-                <canvas id="candleChart"></canvas>
-            </div>
         </div>
 
         <div class="news-panel">
@@ -487,7 +482,7 @@
 
     <script>
         // Global variables
-        let balanceChart, performanceChart, candleChart;
+        let balanceChart, performanceChart;
         let balanceHistory = [];
         let profitHistory = [];
         let tradeHistory = [];
@@ -605,45 +600,6 @@
                     }
                 }
             });
-
-            const candleCanvas = document.getElementById('candleChart');
-            if (!candleCanvas) {
-                return;
-            }
-
-            try {
-                const candleCtx = candleCanvas.getContext('2d');
-                const candleType = Chart?.registry?.getController('candlestick') ? 'candlestick' : 'line';
-                candleChart = new Chart(candleCtx, {
-                    type: candleType,
-                    data: {
-                        datasets: [{
-                            label: 'Trade Price',
-                            data: [],
-                            borderColor: '#00ff00',
-                            backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                            color: {
-                                up: '#00ff00',
-                                down: '#ff0000',
-                                unchanged: '#888'
-                            }
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: { display: true },
-                            y: {
-                                display: true,
-                                title: { display: true, text: 'Price ($)' }
-                            }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.warn('Candle chart init failed:', error);
-            }
         }
 
         // Update dashboard data
@@ -804,26 +760,6 @@
                 p >= 0 ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)'
             );
             performanceChart.update('none');
-
-            // Update candle chart from trades (entry/exit as OHLC)
-            const candleData = sortedTrades.slice(-60).map(trade => {
-                const open = trade.entry_price || 0;
-                const close = trade.exit_price || trade.entry_price || 0;
-                const high = Math.max(open, close);
-                const low = Math.min(open, close);
-                return {
-                    x: trade.timestamp,
-                    o: open,
-                    h: high,
-                    l: low,
-                    c: close,
-                    y: close
-                };
-            });
-            if (candleChart) {
-                candleChart.data.datasets[0].data = candleData;
-                candleChart.update('none');
-            }
         }
 
         // Update trade history
