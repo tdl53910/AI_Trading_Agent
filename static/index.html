@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Trading Agent - Survival Mode</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+    <style>
+        :root {
+            --primary: #00ff00;
+            --secondary: #0f0f23;
+            --accent: #ff00ff;
+            --danger: #ff0000;
+            --warning: #ffff00;
+            --text: #ffffff;
+            --bg-dark: #0a0a1a;
+            --bg-card: #1a1a2e;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--bg-dark);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 255, 0, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.05) 0%, transparent 20%);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 15px;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+        
+        .header p {
+            color: #aaa;
+            font-size: 1.1em;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .status-card {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 20px rgba(0, 255, 0, 0.1);
+        }
+        
+        .status-card.alive {
+            border-color: var(--primary);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-card.dead {
+            border-color: var(--danger);
+        }
+        
+        .status-card.test-mode {
+            border-color: var(--warning);
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        }
+        
+        .status-card h3 {
+            font-size: 0.9em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+        
+        .status-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .profit { color: var(--primary); }
+        .loss { color: var(--danger); }
+        .warning { color: var(--warning); }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            color: black;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        button:hover::before {
+            left: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.danger {
+            background: linear-gradient(45deg, var(--danger), #ff6b6b);
+        }
+        
+        button.warning {
+            background: linear-gradient(45deg, var(--warning), #ffd93d);
+        }
+        
+        button.secondary {
+            background: linear-gradient(45deg, #666, #999);
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .chart-card {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 0, 0.2);
+        }
+        
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: var(--primary);
+            text-align: center;
+            font-size: 1.2em;
+        }
+        
+        .news-panel {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 30px;
+            border: 1px solid rgba(0, 255, 0, 0.2);
+        }
+        
+        .news-panel h3 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .news-source {
+            background: rgba(0, 255, 0, 0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+        
+        .news-source:hover {
+            background: rgba(0, 255, 0, 0.2);
+            transform: translateX(5px);
+        }
+        
+        .news-source .source-url {
+            color: #aaa;
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+        
+        .add-source {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .add-source input {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 6px;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .add-source input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        }
+        
+        .trade-log {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .trade-item {
+            background: rgba(0, 255, 0, 0.05);
+            padding: 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .trade-item.profit {
+            border-left-color: var(--primary);
+        }
+        
+        .trade-item.loss {
+            border-left-color: var(--danger);
+        }
+        
+        .position {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .position.long {
+            background: rgba(0, 255, 0, 0.2);
+            color: var(--primary);
+        }
+        
+        .position.short {
+            background: rgba(255, 0, 255, 0.2);
+            color: var(--accent);
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .amount {
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            border-top: 1px solid rgba(0, 255, 0, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .status-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI TRADING AGENT - SURVIVAL MODE</h1>
+            <p>💵 Started with $50 • ⏰ 10-minute cycles • 🧠 Claude API • ⚡ Rust • 💀 Pay for yourself or DIE</p>
+            <p style="margin-top: 10px; color: var(--accent);">Scans 500-1000 markets • Finds >8% mispricing • Kelly Criterion • Max 6% bankroll</p>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-card" id="balanceCard">
+                <h3>BALANCE</h3>
+                <div class="status-value" id="balance">$0.00</div>
+                <div id="balanceChange">+$0.00</div>
+            </div>
+            
+            <div class="status-card alive" id="statusCard">
+                <h3>STATUS</h3>
+                <div class="status-value" id="status">ALIVE</div>
+                <div id="statusSub">Cycles: 0</div>
+            </div>
+            
+            <div class="status-card">
+                <h3>TOTAL PROFIT</h3>
+                <div class="status-value profit" id="profit">$0.00</div>
+                <div id="profitChange">Today: +$0.00</div>
+            </div>
+            
+            <div class="status-card">
+                <h3>TOTAL LOSS</h3>
+                <div class="status-value loss" id="loss">$0.00</div>
+                <div id="lossChange">Risk: 0%</div>
+            </div>
+            
+            <div class="status-card">
+                <h3>TRADES EXECUTED</h3>
+                <div class="status-value" id="trades">0</div>
+                <div id="winRate">Win Rate: 0%</div>
+            </div>
+            
+            <div class="status-card test-mode" id="testModeCard">
+                <h3>MODE</h3>
+                <div class="status-value warning" id="testMode">TEST</div>
+                <div id="modeSub">Click to toggle</div>
+            </div>
+
+            <div class="status-card" id="simulationCard">
+                <h3>MARKETS</h3>
+                <div class="status-value" id="simulationMode">SIM</div>
+                <div id="simulationSub">Fake money</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="toggleTestMode()">🔄 TOGGLE TEST MODE</button>
+            <button onclick="toggleSimulation()">🧪 TOGGLE SIMULATION</button>
+            <button onclick="forceTrade()">🎮 FORCE TEST TRADE</button>
+            <button onclick="addNewsSource()">📰 ADD NEWS SOURCE</button>
+            <button class="warning" onclick="resetAgent()">🔄 RESET AGENT ($50)</button>
+            <button class="danger" onclick="killAgent()">💀 KILL AGENT (SIMULATE)</button>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3>💰 BALANCE OVER TIME</h3>
+                <canvas id="balanceChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>📈 PROFIT/LOSS PER TRADE</h3>
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="news-panel">
+            <h3>
+                <span>📰 NEWS SOURCES</span>
+                <span id="newsCount">0 sources</span>
+            </h3>
+            <div id="sourcesList">
+                <div class="news-source">
+                    <div>🌐 Financial News API</div>
+                    <div class="source-url">https://newsapi.org/v2/everything?q=finance</div>
+                </div>
+                <div class="news-source">
+                    <div>📊 Market Data</div>
+                    <div class="source-url">https://newsapi.org/v2/everything?q=stock+market</div>
+                </div>
+                <div class="news-source">
+                    <div>₿ Crypto News</div>
+                    <div class="source-url">https://newsapi.org/v2/everything?q=crypto+currency</div>
+                </div>
+                <div class="news-source">
+                    <div>🌍 Economy</div>
+                    <div class="source-url">https://newsapi.org/v2/everything?q=economy</div>
+                </div>
+            </div>
+            
+            <div class="add-source">
+                <input type="text" id="newSource" placeholder="Enter new RSS/API endpoint (e.g., https://rss.example.com/news)">
+                <button onclick="addCustomSource()">Add Source</button>
+            </div>
+        </div>
+
+        <div class="news-panel">
+            <h3>
+                <span>🗞️ LATEST NEWS</span>
+                <span id="newsFeedCount">0 articles</span>
+            </h3>
+            <div id="newsFeed">
+                <div class="news-source">
+                    <div>Loading news...</div>
+                    <div class="source-url">Waiting for first update</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="news-panel">
+            <h3>
+                <span>🧠 LLM INSTRUCTIONS</span>
+                <span id="llmStatus">Idle</span>
+            </h3>
+            <div class="add-source">
+                <input type="text" id="llmInput" placeholder="Describe what you want the agent to do...">
+                <button onclick="sendInstruction()">Send</button>
+            </div>
+            <div class="news-source" style="margin-top: 15px;">
+                <div style="font-weight: bold;">Response</div>
+                <div class="source-url" id="llmResponse">No response yet.</div>
+            </div>
+        </div>
+
+        <div class="news-panel">
+            <h3>
+                <span>📝 RECENT TRADES</span>
+                <span id="tradeCount">0 trades</span>
+            </h3>
+            <div class="trade-log" id="tradeLog">
+                <div class="trade-item">
+                    <div>No trades yet...</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>🤖 AI Trading Agent v1.0 • Built with Rust • Claude API • Survival Mode</p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #444;">
+                Every 10 minutes: Scans 500-1000 markets → Builds fair value estimate → Finds >8% mispricing → Kelly Criterion → Executes → Pays API bill from profits
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Global variables
+        let balanceChart, performanceChart;
+        let balanceHistory = [];
+        let profitHistory = [];
+        let tradeHistory = [];
+        let lastBalance = 0;
+        let lastProfit = 0;
+        const DateTime = luxon.DateTime;
+
+        // Initialize charts
+        function initCharts() {
+            const balanceCtx = document.getElementById('balanceChart').getContext('2d');
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            
+            balanceChart = new Chart(balanceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Balance',
+                        data: [],
+                        borderColor: '#00ff00',
+                        backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `$${context.raw.toFixed(2)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Balance ($)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.1)'
+                            },
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+            
+            performanceChart = new Chart(performanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Profit/Loss',
+                        data: [],
+                        backgroundColor: [],
+                        borderColor: '#ffffff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.raw >= 0 ? '+' : ''}$${context.raw.toFixed(2)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Trade #'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Amount ($)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 255, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update dashboard data
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+                const tradesResponse = await fetch('/api/trades');
+                const trades = await tradesResponse.json();
+                const newsResponse = await fetch('/api/news');
+                const news = await newsResponse.json();
+                
+                // Update main stats
+                document.getElementById('balance').textContent = `$${data.balance.toFixed(2)}`;
+                document.getElementById('profit').textContent = `$${data.total_profit.toFixed(2)}`;
+                document.getElementById('loss').textContent = `$${data.total_loss.toFixed(2)}`;
+                document.getElementById('trades').textContent = data.trades_executed;
+                document.getElementById('newsCount').textContent = `${data.news_sources_count} sources`;
+                document.getElementById('tradeCount').textContent = `${data.trades_executed} trades`;
+                
+                // Update status
+                const statusCard = document.getElementById('statusCard');
+                const statusElement = document.getElementById('status');
+                if (data.is_alive) {
+                    statusElement.textContent = 'ALIVE';
+                    statusElement.className = 'status-value';
+                    statusCard.className = 'status-card alive';
+                } else {
+                    statusElement.textContent = 'DEAD';
+                    statusElement.className = 'status-value loss';
+                    statusCard.className = 'status-card dead';
+                }
+                document.getElementById('statusSub').textContent = `Cycles: ${data.cycle_count}`;
+                
+                // Update test mode
+                const testModeCard = document.getElementById('testModeCard');
+                const testModeElement = document.getElementById('testMode');
+                if (data.is_test_mode) {
+                    testModeElement.textContent = 'TEST';
+                    testModeElement.className = 'status-value warning';
+                    testModeCard.className = 'status-card test-mode';
+                } else {
+                    testModeElement.textContent = 'REAL';
+                    testModeElement.className = 'status-value profit';
+                    testModeCard.className = 'status-card';
+                }
+
+                // Update simulation mode
+                const simulationCard = document.getElementById('simulationCard');
+                const simulationElement = document.getElementById('simulationMode');
+                if (data.simulate_markets) {
+                    simulationElement.textContent = 'SIM';
+                    simulationElement.className = 'status-value warning';
+                    simulationCard.className = 'status-card test-mode';
+                    document.getElementById('simulationSub').textContent = 'Fake money';
+                } else {
+                    simulationElement.textContent = 'REAL';
+                    simulationElement.className = 'status-value profit';
+                    simulationCard.className = 'status-card';
+                    document.getElementById('simulationSub').textContent = 'Live markets';
+                }
+                
+                // Calculate changes
+                const balanceChange = data.balance - lastBalance;
+                const profitChange = data.total_profit - lastProfit;
+                lastBalance = data.balance;
+                lastProfit = data.total_profit;
+                
+                // Update change indicators
+                const balanceChangeElement = document.getElementById('balanceChange');
+                if (balanceChange !== 0) {
+                    balanceChangeElement.textContent = `${balanceChange >= 0 ? '+' : ''}$${balanceChange.toFixed(2)}`;
+                    balanceChangeElement.className = balanceChange >= 0 ? 'profit' : 'loss';
+                }
+                
+                const profitChangeElement = document.getElementById('profitChange');
+                if (profitChange !== 0) {
+                    profitChangeElement.textContent = `Change: ${profitChange >= 0 ? '+' : ''}$${profitChange.toFixed(2)}`;
+                }
+                
+                // Calculate win rate
+                if (data.trades_executed > 0) {
+                    const winRate = ((data.total_profit / (data.total_profit + data.total_loss)) * 100) || 0;
+                    document.getElementById('winRate').textContent = `Win Rate: ${winRate.toFixed(1)}%`;
+                }
+                
+                // Update charts
+                updateCharts(data, trades);
+                
+                // Update trade history
+                updateTradeHistory(trades);
+
+                updateNewsFeed(news);
+                
+            } catch (error) {
+                console.error('Failed to update dashboard:', error);
+            }
+        }
+
+        // Update charts with new data
+        function updateCharts(data, trades) {
+            const sortedTrades = [...trades].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const netProfit = data.total_profit - data.total_loss;
+            const startingBalance = data.balance - netProfit;
+
+            // Build balance history from real trades
+            let runningBalance = startingBalance;
+            const balancePoints = [{
+                x: 'Start',
+                y: runningBalance
+            }];
+
+            sortedTrades.forEach(trade => {
+                const profit = trade.profit_loss || 0;
+                runningBalance += profit;
+                balancePoints.push({
+                    x: DateTime.fromISO(trade.timestamp).toLocaleString(DateTime.TIME_SIMPLE),
+                    y: runningBalance
+                });
+            });
+
+            const maxBalancePoints = balancePoints.slice(-50);
+            balanceChart.data.labels = maxBalancePoints.map(p => p.x);
+            balanceChart.data.datasets[0].data = maxBalancePoints.map(p => p.y);
+            balanceChart.update('none');
+
+            // Build profit/loss chart from real trades
+            const recentTrades = sortedTrades.slice(-50);
+            const profits = recentTrades.map(trade => trade.profit_loss || 0);
+            performanceChart.data.labels = recentTrades.map((_, i) => i + 1);
+            performanceChart.data.datasets[0].data = profits;
+            performanceChart.data.datasets[0].backgroundColor = profits.map(p =>
+                p >= 0 ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)'
+            );
+            performanceChart.update('none');
+        }
+
+        // Update trade history
+        function updateTradeHistory(trades) {
+            try {
+                const tradeLog = document.getElementById('tradeLog');
+                tradeLog.innerHTML = '';
+                
+                if (trades.length === 0) {
+                    tradeLog.innerHTML = '<div class="trade-item"><div>No trades yet...</div></div>';
+                    return;
+                }
+                
+                // Display last 10 trades
+                const recentTrades = trades.slice(-10).reverse();
+                
+                recentTrades.forEach(trade => {
+                    const profit = trade.profit_loss || 0;
+                    const isProfit = profit >= 0;
+                    const date = DateTime.fromISO(trade.timestamp).toLocaleString(DateTime.DATETIME_MED);
+                    
+                    const tradeItem = document.createElement('div');
+                    tradeItem.className = `trade-item ${isProfit ? 'profit' : 'loss'}`;
+                    tradeItem.innerHTML = `
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; margin-bottom: 5px;">${trade.market_name}</div>
+                            <div style="font-size: 0.9em; color: #aaa;">${date}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="position ${trade.position.toLowerCase()}">${trade.position}</div>
+                            <div class="amount" style="margin: 5px 0; font-size: 1.1em;">
+                                ${isProfit ? '+' : ''}$${profit.toFixed(2)}
+                            </div>
+                            <div style="font-size: 0.9em; color: #aaa;">Size: $${trade.amount.toFixed(2)}</div>
+                        </div>
+                    `;
+                    tradeLog.appendChild(tradeItem);
+                });
+            } catch (error) {
+                console.error('Failed to fetch trade history:', error);
+            }
+        }
+
+        function updateNewsFeed(news) {
+            const newsFeed = document.getElementById('newsFeed');
+            const newsFeedCount = document.getElementById('newsFeedCount');
+            newsFeed.innerHTML = '';
+
+            if (!news || news.length === 0) {
+                newsFeed.innerHTML = '<div class="news-source"><div>No news yet...</div><div class="source-url">Waiting for next update</div></div>';
+                newsFeedCount.textContent = '0 articles';
+                return;
+            }
+
+            const recentNews = news.slice(0, 8);
+            recentNews.forEach(article => {
+                const item = document.createElement('div');
+                item.className = 'news-source';
+                item.innerHTML = `
+                    <div style="font-weight: bold;">${article.title}</div>
+                    <div class="source-url">${article.source} • ${DateTime.fromISO(article.published_at).toLocaleString(DateTime.DATETIME_MED)}</div>
+                `;
+                newsFeed.appendChild(item);
+            });
+            newsFeedCount.textContent = `${recentNews.length} articles`;
+        }
+
+        // Control functions
+        async function toggleTestMode() {
+            try {
+                const response = await fetch('/api/toggle-test', { method: 'POST' });
+                const result = await response.json();
+                showNotification(`Test mode: ${result.test_mode ? 'ON' : 'OFF'}`);
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to toggle test mode:', error);
+                showNotification('Error toggling test mode', 'error');
+            }
+        }
+
+        async function toggleSimulation() {
+            try {
+                const response = await fetch('/api/toggle-sim', { method: 'POST' });
+                const result = await response.json();
+                showNotification(`Simulation: ${result.simulate_markets ? 'ON' : 'OFF'}`);
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to toggle simulation:', error);
+                showNotification('Error toggling simulation', 'error');
+            }
+        }
+
+        async function forceTrade() {
+            try {
+                const response = await fetch('/api/force-trade', { method: 'POST' });
+                const result = await response.json();
+                showNotification(result.message);
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to force trade:', error);
+                showNotification('Error executing trade', 'error');
+            }
+        }
+
+        async function addNewsSource() {
+            const source = prompt('Enter news source URL (RSS, API endpoint, etc.):');
+            if (source) {
+                try {
+                    const response = await fetch('/api/add-news', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(source)
+                    });
+                    const result = await response.json();
+                    showNotification(result.message);
+                    updateDashboard();
+                } catch (error) {
+                    console.error('Failed to add news source:', error);
+                    showNotification('Error adding news source', 'error');
+                }
+            }
+        }
+
+        async function addCustomSource() {
+            const sourceInput = document.getElementById('newSource');
+            const source = sourceInput.value.trim();
+            
+            if (!source) {
+                showNotification('Please enter a valid URL', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/add-news', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(source)
+                });
+                const result = await response.json();
+                showNotification(result.message);
+                sourceInput.value = '';
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to add news source:', error);
+                showNotification('Error adding news source', 'error');
+            }
+        }
+
+        async function killAgent() {
+            if (confirm('⚠️  Are you sure? This will simulate agent death by setting balance to $0.')) {
+                try {
+                    const response = await fetch('/api/kill', { method: 'POST' });
+                    const result = await response.json();
+                    showNotification(result.message);
+                    updateDashboard();
+                } catch (error) {
+                    console.error('Failed to kill agent:', error);
+                    showNotification('Error killing agent', 'error');
+                }
+            }
+        }
+
+        async function sendInstruction() {
+            const input = document.getElementById('llmInput');
+            const responseEl = document.getElementById('llmResponse');
+            const statusEl = document.getElementById('llmStatus');
+            const instruction = input.value.trim();
+
+            if (!instruction) {
+                showNotification('Please enter an instruction', 'warning');
+                return;
+            }
+
+            statusEl.textContent = 'Sending...';
+
+            try {
+                const response = await fetch('/api/instruct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instruction })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    responseEl.textContent = result.response;
+                    statusEl.textContent = 'Complete';
+                    input.value = '';
+                } else {
+                    responseEl.textContent = result.message || 'Instruction failed.';
+                    statusEl.textContent = 'Error';
+                }
+            } catch (error) {
+                console.error('Failed to send instruction:', error);
+                responseEl.textContent = 'Error sending instruction.';
+                statusEl.textContent = 'Error';
+            }
+        }
+
+        async function resetAgent() {
+            if (confirm('Reset agent to initial state with $50?')) {
+                try {
+                    const response = await fetch('/api/reset', { method: 'POST' });
+                    const result = await response.json();
+                    showNotification(result.message);
+                    updateDashboard();
+                } catch (error) {
+                    console.error('Failed to reset agent:', error);
+                    showNotification('Error resetting agent', 'error');
+                }
+            }
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'error' ? '#ff0000' : type === 'warning' ? '#ffff00' : '#00ff00'};
+                color: ${type === 'warning' ? '#000' : '#fff'};
+                border-radius: 8px;
+                z-index: 1000;
+                font-weight: bold;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+            
+            // Add CSS for animations
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        // Initialize and start updates
+        window.onload = function() {
+            initCharts();
+            updateDashboard();
+            
+            // Update every 5 seconds
+            setInterval(updateDashboard, 5000);
+            
+            // Update trade history every 30 seconds
+            setInterval(updateTradeHistory, 30000);
+        };
+    </script>
+</body>
+</html>
