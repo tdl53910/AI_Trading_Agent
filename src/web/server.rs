@@ -7,6 +7,7 @@ use crate::llm;
 use serde::{Serialize, Deserialize};
 use anyhow::Result;
 use log::info;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct ControlPanel {
@@ -17,9 +18,27 @@ pub struct ControlPanel {
     is_alive: bool,
     is_test_mode: bool,
     simulate_markets: bool,
+    is_paused: bool,
+    preferred_categories: Vec<String>,
     cycle_count: u32,
     portfolio_size: usize,
     news_sources_count: usize,
+}
+
+#[derive(Serialize)]
+struct HoldingSummary {
+    market_name: String,
+    net_amount: f64,
+    trades: usize,
+    net_profit_loss: f64,
+}
+
+#[derive(Serialize)]
+struct ProfitLossItem {
+    market_name: String,
+    profit_loss: f64,
+    amount: f64,
+    timestamp: String,
 }
 
 pub async fn start_web_ui(trader: Arc<Mutex<Trader>>, settings: Settings) -> Result<()> {
@@ -48,6 +67,12 @@ pub async fn start_web_ui(trader: Arc<Mutex<Trader>>, settings: Settings) -> Res
         .and(warp::post())
         .and(trader_filter.clone())
         .and_then(handle_toggle_simulation);
+
+    let toggle_running = warp::path("api")
+        .and(warp::path("toggle-run"))
+        .and(warp::post())
+        .and(trader_filter.clone())
+        .and_then(handle_toggle_running);
     
     let add_news_source = warp::path("api")
         .and(warp::path("add-news"))
@@ -81,11 +106,42 @@ pub async fn start_web_ui(trader: Arc<Mutex<Trader>>, settings: Settings) -> Res
         .and(trader_filter.clone())
         .and_then(handle_trade_history);
 
+    let portfolio = warp::path("api")
+        .and(warp::path("portfolio"))
+        .and(warp::get())
+        .and(trader_filter.clone())
+        .and_then(handle_portfolio);
+
+    let profit_loss = warp::path("api")
+        .and(warp::path("profit-loss"))
+        .and(warp::get())
+        .and(trader_filter.clone())
+        .and_then(handle_profit_loss);
+
+    let simulate_day = warp::path("api")
+        .and(warp::path("simulate-day"))
+        .and(warp::post())
+        .and(settings_filter.clone())
+        .and(trader_filter.clone())
+        .and_then(handle_simulate_day);
+
     let news_feed = warp::path("api")
         .and(warp::path("news"))
         .and(warp::get())
         .and(trader_filter.clone())
         .and_then(handle_news);
+
+    let news_sources = warp::path("api")
+        .and(warp::path("news-sources"))
+        .and(warp::get())
+        .and(trader_filter.clone())
+        .and_then(handle_news_sources);
+
+    let decision_log = warp::path("api")
+        .and(warp::path("thoughts"))
+        .and(warp::get())
+        .and(trader_filter.clone())
+        .and_then(handle_thoughts);
 
     let llm_instruction = warp::path("api")
         .and(warp::path("instruct"))
@@ -103,12 +159,18 @@ pub async fn start_web_ui(trader: Arc<Mutex<Trader>>, settings: Settings) -> Res
     let routes = dashboard
         .or(toggle_test)
         .or(toggle_simulation)
+        .or(toggle_running)
         .or(add_news_source)
         .or(force_trade)
         .or(kill_agent)
         .or(reset_agent)
         .or(trade_history)
+        .or(portfolio)
+        .or(profit_loss)
+        .or(simulate_day)
         .or(news_feed)
+        .or(news_sources)
+        .or(decision_log)
         .or(llm_instruction)
         .or(static_files)
         .or(index)
@@ -141,6 +203,8 @@ async fn handle_dashboard(
         is_alive: stats.is_alive,
         is_test_mode: stats.is_test_mode,
         simulate_markets: stats.simulate_markets,
+        is_paused: stats.is_paused,
+        preferred_categories: stats.preferred_categories,
         cycle_count: stats.cycle_count,
         portfolio_size: stats.portfolio_size,
         news_sources_count: stats.news_sources_count,
@@ -171,6 +235,18 @@ async fn handle_toggle_simulation(
         "status": "success",
         "simulate_markets": trader_lock.simulate_markets,
         "test_mode": trader_lock.is_test_mode
+    })))
+}
+
+async fn handle_toggle_running(
+    trader: Arc<Mutex<Trader>>
+) -> Result<impl Reply, Rejection> {
+    let mut trader_lock = trader.lock().await;
+    trader_lock.toggle_running();
+
+    Ok(warp::reply::json(&serde_json::json!({
+        "status": "success",
+        "is_paused": trader_lock.is_paused
     })))
 }
 
@@ -267,11 +343,90 @@ async fn handle_trade_history(
     Ok(warp::reply::json(&history))
 }
 
+async fn handle_portfolio(
+    trader: Arc<Mutex<Trader>>
+) -> Result<impl Reply, Rejection> {
+    let trader_lock = trader.lock().await;
+    let mut by_market: HashMap<String, HoldingSummary> = HashMap::new();
+
+    for trade in trader_lock.trade_history.iter() {
+        let entry = by_market.entry(trade.market_name.clone()).or_insert(HoldingSummary {
+            market_name: trade.market_name.clone(),
+            net_amount: 0.0,
+            trades: 0,
+            net_profit_loss: 0.0,
+        });
+
+        let amount = trade.amount.to_string().parse::<f64>().unwrap_or(0.0);
+        let direction = match trade.position {
+            crate::agent::Position::Short | crate::agent::Position::No => -1.0,
+            _ => 1.0,
+        };
+
+        entry.net_amount += amount * direction;
+        entry.trades += 1;
+        let pl = trade.profit_loss.unwrap_or_default().to_string().parse::<f64>().unwrap_or(0.0);
+        entry.net_profit_loss += pl;
+    }
+
+    let mut holdings: Vec<_> = by_market.into_values().collect();
+    holdings.sort_by(|a, b| b.net_profit_loss.partial_cmp(&a.net_profit_loss).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(warp::reply::json(&holdings))
+}
+
+async fn handle_profit_loss(
+    trader: Arc<Mutex<Trader>>
+) -> Result<impl Reply, Rejection> {
+    let trader_lock = trader.lock().await;
+    let mut items: Vec<ProfitLossItem> = trader_lock.trade_history.iter().map(|trade| {
+        let profit_loss = trade.profit_loss.unwrap_or_default().to_string().parse::<f64>().unwrap_or(0.0);
+        let amount = trade.amount.to_string().parse::<f64>().unwrap_or(0.0);
+        ProfitLossItem {
+            market_name: trade.market_name.clone(),
+            profit_loss,
+            amount,
+            timestamp: trade.timestamp.to_rfc3339(),
+        }
+    }).collect();
+
+    items.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    Ok(warp::reply::json(&items))
+}
+
+async fn handle_simulate_day(
+    settings: Settings,
+    trader: Arc<Mutex<Trader>>
+) -> Result<impl Reply, Rejection> {
+    let mut trader_lock = trader.lock().await;
+    let trades = trader_lock.simulate_day(&settings).await.unwrap_or(0);
+
+    Ok(warp::reply::json(&serde_json::json!({
+        "status": "success",
+        "trades": trades
+    })))
+}
+
 async fn handle_news(
     trader: Arc<Mutex<Trader>>
 ) -> Result<impl Reply, Rejection> {
     let trader_lock = trader.lock().await;
     Ok(warp::reply::json(&trader_lock.last_news))
+}
+
+async fn handle_news_sources(
+    trader: Arc<Mutex<Trader>>
+) -> Result<impl Reply, Rejection> {
+    let trader_lock = trader.lock().await;
+    Ok(warp::reply::json(&trader_lock.news_sources))
+}
+
+async fn handle_thoughts(
+    trader: Arc<Mutex<Trader>>
+) -> Result<impl Reply, Rejection> {
+    let trader_lock = trader.lock().await;
+    let thoughts: Vec<_> = trader_lock.decision_log.iter().cloned().collect();
+    Ok(warp::reply::json(&thoughts))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -288,13 +443,15 @@ async fn handle_llm_instruction(
 
     let mut trader_lock = trader.lock().await;
     trader_lock.last_instruction = Some(payload.instruction.clone());
+    let categories = trader_lock.apply_instruction(&payload.instruction);
 
     match response {
         Ok(text) => {
             trader_lock.last_llm_response = Some(text.clone());
             Ok(warp::reply::json(&serde_json::json!({
                 "status": "success",
-                "response": text
+                "response": text,
+                "preferred_categories": categories
             })))
         }
         Err(e) => {

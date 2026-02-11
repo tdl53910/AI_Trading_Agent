@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
     });
     
     log::info!("🌐 Web dashboard available at http://localhost:3030");
-    log::info!("⏰ Starting 10-minute trading cycles...");
+    log::info!("⏰ Starting 1-5 minute trading cycles...");
     
     // Run the main trading loop
     run_trading_loop(trader, settings).await?;
@@ -49,17 +49,25 @@ async fn run_trading_loop(
     trader: Arc<Mutex<Trader>>,
     settings: Settings
 ) -> Result<()> {
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600)); // Every 10 minutes
-    
     let mut cycle_count = 0;
     
     loop {
-        interval.tick().await;
         cycle_count += 1;
         
         log::info!("🔄 Starting trading cycle #{}", cycle_count);
         
         let mut trader_lock = trader.lock().await;
+
+        if trader_lock.is_paused {
+            log::info!("⏸️  Trading is paused. Skipping cycle #{}.", cycle_count);
+            drop(trader_lock);
+            let min_secs = settings.min_scan_interval_seconds;
+            let max_secs = settings.max_scan_interval_seconds.max(min_secs);
+            let wait_secs = rand::random::<u64>() % (max_secs - min_secs + 1) + min_secs;
+            log::info!("⏳ Next check in {} seconds...", wait_secs);
+            tokio::time::sleep(tokio::time::Duration::from_secs(wait_secs)).await;
+            continue;
+        }
         
         // Check if agent is alive
         if !trader_lock.is_alive() {
@@ -99,11 +107,17 @@ async fn run_trading_loop(
         // Log current status
         trader_lock.log_status();
         
-        log::info!("✅ Completed trading cycle #{}. Next in 10 minutes...", cycle_count);
+        log::info!("✅ Completed trading cycle #{}.", cycle_count);
         log::info!("---");
         
         // Drop lock for next iteration
         drop(trader_lock);
+
+        let min_secs = settings.min_scan_interval_seconds;
+        let max_secs = settings.max_scan_interval_seconds.max(min_secs);
+        let wait_secs = rand::random::<u64>() % (max_secs - min_secs + 1) + min_secs;
+        log::info!("⏳ Next cycle in {} seconds...", wait_secs);
+        tokio::time::sleep(tokio::time::Duration::from_secs(wait_secs)).await;
     }
     
     Ok(())

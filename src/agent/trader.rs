@@ -48,6 +48,9 @@ pub struct Trader {
     pub trades_executed: usize,
     pub is_test_mode: bool,
     pub simulate_markets: bool,
+    pub is_paused: bool,
+    pub preferred_categories: Vec<String>,
+    pub decision_log: VecDeque<String>,
     pub is_alive: bool,
     pub news_sources: Vec<String>,
     pub last_news: Vec<crate::news::analyzer::NewsArticle>,
@@ -85,12 +88,20 @@ impl Trader {
             trades_executed: 0,
             is_test_mode: true, // Start in test mode for safety
             simulate_markets: true,
+            is_paused: false,
+            preferred_categories: Vec::new(),
+            decision_log: VecDeque::with_capacity(200),
             is_alive: true,
             news_sources: vec![
                 "https://newsapi.org/v2/everything?q=finance&language=en".to_string(),
                 "https://newsapi.org/v2/everything?q=stock+market&language=en".to_string(),
                 "https://newsapi.org/v2/everything?q=crypto+currency&language=en".to_string(),
                 "https://newsapi.org/v2/everything?q=economy&language=en".to_string(),
+                "https://newsapi.org/v2/everything?q=technology&language=en".to_string(),
+                "https://newsapi.org/v2/everything?q=energy&language=en".to_string(),
+                "https://newsapi.org/v2/everything?q=markets&language=en".to_string(),
+                "https://newsapi.org/v2/everything?q=inflation&language=en".to_string(),
+                "https://newsapi.org/v2/everything?q=interest+rates&language=en".to_string(),
             ],
             last_news: Vec::new(),
             last_instruction: None,
@@ -198,12 +209,25 @@ impl Trader {
     
     async fn evaluate_opportunities(&mut self, opportunities: Vec<(&Market, Decimal, Decimal)>, settings: &Settings) -> Result<()> {
         for (market, fair_value, mispricing) in opportunities {
+            if !self.preferred_categories.is_empty()
+                && !self.preferred_categories.iter().any(|cat| cat.eq_ignore_ascii_case(&market.category))
+            {
+                self.push_decision(format!(
+                    "Skipped {}: category {} not in preferences",
+                    market.name, market.category
+                ));
+                continue;
+            }
             // Calculate position size using Kelly Criterion
             let kelly_fraction = self.calculate_kelly_criterion(market, fair_value, mispricing);
             let max_position = self.balance * settings.max_position_percent;
             let position_size = (self.balance * kelly_fraction).min(max_position).max(dec!(1));
             
             if position_size < dec!(5) {
+                self.push_decision(format!(
+                    "Skipped {}: position size ${} too small",
+                    market.name, position_size.round_dp(2)
+                ));
                 continue; // Position too small
             }
             
@@ -211,6 +235,10 @@ impl Trader {
             if position_size > self.balance * dec!(0.9) {
                 warn!("⚠️  Insufficient balance for position: ${} (Balance: ${})", 
                       position_size, self.balance);
+                self.push_decision(format!(
+                    "Skipped {}: insufficient balance for ${}",
+                    market.name, position_size.round_dp(2)
+                ));
                 continue;
             }
             
@@ -223,6 +251,13 @@ impl Trader {
             
             info!("🎮 Executing trade: {:?} {} @ ${} (Size: ${})", 
                   position, market.name, market.current_price, position_size);
+            self.push_decision(format!(
+                "Trade {:?} {} @ ${} (size ${})",
+                position,
+                market.name,
+                market.current_price.round_dp(2),
+                position_size.round_dp(2)
+            ));
             
             // Execute trade
             self.execute_trade(market.clone(), position, position_size, market.current_price).await?;
@@ -427,6 +462,107 @@ impl Trader {
         self.is_test_mode = self.simulate_markets;
         info!("🧪 Simulated markets: {}", if self.simulate_markets { "ON" } else { "OFF" });
     }
+
+    pub fn toggle_running(&mut self) {
+        self.is_paused = !self.is_paused;
+        info!("⏯️  Trading: {}", if self.is_paused { "PAUSED" } else { "RUNNING" });
+    }
+
+    pub fn apply_instruction(&mut self, instruction: &str) -> Vec<String> {
+        let text = instruction.to_lowercase();
+
+        if text.contains("all") || text.contains("any") || text.contains("everything") {
+            self.preferred_categories.clear();
+            self.push_decision("Cleared category filter (all markets)".to_string());
+            return self.preferred_categories.clone();
+        }
+
+        let mut categories = Vec::new();
+
+        if text.contains("crypto") { categories.push("Crypto"); }
+        if text.contains("stock") { categories.push("Stocks"); }
+        if text.contains("tech") { categories.push("Technology"); }
+        if text.contains("finance") { categories.push("Finance"); }
+        if text.contains("econom") { categories.push("Economics"); }
+        if text.contains("politic") { categories.push("Politics"); }
+        if text.contains("sport") { categories.push("Sports"); }
+        if text.contains("weather") { categories.push("Weather"); }
+        if text.contains("entertain") { categories.push("Entertainment"); }
+        if text.contains("science") { categories.push("Science"); }
+
+        self.preferred_categories = categories.iter().map(|c| c.to_string()).collect();
+        if self.preferred_categories.is_empty() {
+            self.push_decision("No recognized categories in instruction".to_string());
+        } else {
+            self.push_decision(format!(
+                "Set preferred categories: {}",
+                self.preferred_categories.join(", ")
+            ));
+        }
+        self.preferred_categories.clone()
+    }
+
+    pub async fn simulate_day(&mut self, settings: &Settings) -> Result<usize> {
+        if !self.is_test_mode || !self.simulate_markets {
+            self.push_decision("Simulation requested but not in test mode".to_string());
+            return Ok(0);
+        }
+
+        self.push_decision("Starting 1-day simulation".to_string());
+
+        let mut trades = 0usize;
+        let steps = 78; // ~6.5 hours of 5-min candles
+
+        for step in 0..steps {
+            if step % 10 == 0 {
+                self.push_decision(format!("Simulated hour block {}", (step / 10) + 1));
+            }
+
+            let price = dec!(50) + Decimal::from(rand::random::<u32>() % 60);
+            let market = Market {
+                id: format!("sim_market_{}", step),
+                name: format!("Simulated Market #{}", step),
+                description: "Simulated day market".to_string(),
+                current_price: price,
+                volume: dec!(10000),
+                liquidity: dec!(50000),
+                history: vec![dec!(45), dec!(48), dec!(52), price],
+                category: "Stocks".to_string(),
+                expiry_date: Some(Utc::now() + chrono::Duration::days(30)),
+            };
+
+            let fair_value = self.estimate_fair_value(&market).await?;
+            let price_diff = if market.current_price > fair_value {
+                market.current_price - fair_value
+            } else {
+                fair_value - market.current_price
+            };
+            let mispricing = (price_diff / fair_value) * dec!(100);
+
+            if mispricing > settings.min_mispricing_percent {
+                let position = if market.current_price < fair_value {
+                    Position::Long
+                } else {
+                    Position::Short
+                };
+
+                let position_size = (self.balance * settings.max_position_percent).max(dec!(5));
+                if self.execute_trade(market, position, position_size, price).await.is_ok() {
+                    trades += 1;
+                }
+            }
+        }
+
+        self.push_decision(format!("Day simulation complete: {} trades", trades));
+        Ok(trades)
+    }
+
+    fn push_decision(&mut self, message: String) {
+        if self.decision_log.len() >= 200 {
+            self.decision_log.pop_front();
+        }
+        self.decision_log.push_back(message);
+    }
     
     pub fn add_news_source(&mut self, source: String) {
         if !self.news_sources.contains(&source) {
@@ -444,6 +580,8 @@ impl Trader {
             is_alive: self.is_alive,
             is_test_mode: self.is_test_mode,
             simulate_markets: self.simulate_markets,
+            is_paused: self.is_paused,
+            preferred_categories: self.preferred_categories.clone(),
             cycle_count: self.cycle_count,
             portfolio_size: self.portfolio.len(),
             news_sources_count: self.news_sources.len(),
@@ -459,6 +597,8 @@ pub struct TraderStats {
     pub is_alive: bool,
     pub is_test_mode: bool,
     pub simulate_markets: bool,
+    pub is_paused: bool,
+    pub preferred_categories: Vec<String>,
     pub cycle_count: u32,
     pub portfolio_size: usize,
     pub news_sources_count: usize,

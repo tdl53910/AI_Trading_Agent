@@ -7,7 +7,8 @@ use anyhow::Result;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub starting_balance: Decimal,
-    pub scan_interval_seconds: u64,
+    pub min_scan_interval_seconds: u64,
+    pub max_scan_interval_seconds: u64,
     pub claude_api_key: String,
     pub claude_model: String,
     pub claude_api_cost_per_call: Decimal,
@@ -36,7 +37,8 @@ impl Settings {
         
         Ok(Self {
             starting_balance: dec!(50.00), // $50 starting capital
-            scan_interval_seconds: 600, // Every 10 minutes
+            min_scan_interval_seconds: 60, // 1 minute
+            max_scan_interval_seconds: 300, // 5 minutes
             claude_api_key,
             claude_model,
             claude_api_cost_per_call: dec!(0.01), // $0.01 per API call

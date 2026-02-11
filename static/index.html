@@ -5,35 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🤖 AI Trading Agent - Survival Mode</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@3.3.0/dist/chartjs-chart-financial.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
     <style>
         :root {
-            --primary: #00ff00;
-            --secondary: #0f0f23;
-            --accent: #ff00ff;
-            --danger: #ff0000;
-            --warning: #ffff00;
-            --text: #ffffff;
-            --bg-dark: #0a0a1a;
-            --bg-card: #1a1a2e;
+            --primary: #2e7df6;
+            --primary-dark: #1f66d8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --text: #111827;
+            --muted: #6b7280;
+            --bg: #f6f7fb;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Courier New', monospace;
-            background: var(--bg-dark);
+            font-family: 'Inter', 'SF Pro Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
             color: var(--text);
             line-height: 1.6;
-            padding: 20px;
+            padding: 24px;
             min-height: 100vh;
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(0, 255, 0, 0.05) 0%, transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.05) 0%, transparent 20%);
         }
         
         .container {
@@ -42,39 +43,25 @@
         }
         
         .header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 20px;
-            background: var(--bg-card);
-            border-radius: 15px;
-            border: 2px solid var(--primary);
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-            position: relative;
-            overflow: hidden;
+            text-align: left;
+            margin-bottom: 28px;
+            padding: 20px 24px;
+            background: var(--card);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
         }
-        
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
-        }
-        
+
         .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+            font-size: 1.6em;
+            margin-bottom: 6px;
+            letter-spacing: 0.2px;
+            color: var(--text);
         }
-        
+
         .header p {
-            color: #aaa;
-            font-size: 1.1em;
+            color: var(--muted);
+            font-size: 0.95em;
         }
         
         .status-grid {
@@ -85,118 +72,76 @@
         }
         
         .status-card {
-            background: var(--bg-card);
-            padding: 25px;
+            background: var(--card);
+            padding: 18px 20px;
             border-radius: 12px;
-            border: 1px solid rgba(0, 255, 0, 0.3);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: var(--shadow);
         }
-        
+
         .status-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary);
-            box-shadow: 0 10px 20px rgba(0, 255, 0, 0.1);
+            transform: translateY(-2px);
         }
-        
-        .status-card.alive {
-            border-color: var(--primary);
-            animation: pulse 2s infinite;
-        }
-        
-        .status-card.dead {
-            border-color: var(--danger);
-        }
-        
-        .status-card.test-mode {
-            border-color: var(--warning);
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
-        }
+
+        .status-card.alive { border-color: rgba(22, 163, 74, 0.4); }
+        .status-card.dead { border-color: rgba(220, 38, 38, 0.5); }
+        .status-card.test-mode { border-color: rgba(245, 158, 11, 0.5); }
         
         .status-card h3 {
-            font-size: 0.9em;
-            color: #888;
+            font-size: 0.75em;
+            color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
+            letter-spacing: 1.2px;
+            margin-bottom: 6px;
         }
-        
+
         .status-value {
-            font-size: 2.2em;
-            font-weight: bold;
-            margin: 10px 0;
+            font-size: 1.9em;
+            font-weight: 600;
+            margin: 6px 0;
+            color: var(--text);
         }
-        
-        .profit { color: var(--primary); }
+
+        .profit { color: var(--success); }
         .loss { color: var(--danger); }
         .warning { color: var(--warning); }
         
         .controls {
             display: flex;
-            gap: 15px;
-            margin-bottom: 40px;
+            gap: 12px;
+            margin-bottom: 32px;
             flex-wrap: wrap;
             justify-content: center;
         }
-        
+
         button {
-            background: linear-gradient(45deg, var(--primary), var(--accent));
-            color: black;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
+            background: var(--primary);
+            color: #fff;
+            border: 1px solid rgba(46, 125, 246, 0.6);
+            padding: 10px 18px;
+            border-radius: 10px;
             cursor: pointer;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            font-size: 1em;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: relative;
-            overflow: hidden;
+            font-weight: 600;
+            font-size: 0.92em;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+            text-transform: none;
+            letter-spacing: 0.2px;
+            box-shadow: 0 6px 14px rgba(46, 125, 246, 0.2);
         }
-        
-        button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: 0.5s;
-        }
-        
-        button:hover::before {
-            left: 100%;
-        }
-        
+
         button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0, 255, 0, 0.3);
+            transform: translateY(-1px);
+            filter: brightness(1.02);
         }
-        
+
         button:active {
             transform: translateY(0);
         }
-        
-        button.danger {
-            background: linear-gradient(45deg, var(--danger), #ff6b6b);
-        }
-        
-        button.warning {
-            background: linear-gradient(45deg, var(--warning), #ffd93d);
-        }
-        
-        button.secondary {
-            background: linear-gradient(45deg, #666, #999);
-        }
+
+        button.danger { background: var(--danger); border-color: rgba(220, 38, 38, 0.6); }
+        button.warning { background: var(--warning); color: #111827; border-color: rgba(245, 158, 11, 0.6); }
+        button.secondary { background: #e5e7eb; color: #111827; border-color: #d1d5db; box-shadow: none; }
         
         .charts-container {
             display: grid;
@@ -206,52 +151,56 @@
         }
         
         .chart-card {
-            background: var(--bg-card);
-            padding: 25px;
+            background: var(--card);
+            padding: 18px 20px;
             border-radius: 12px;
-            border: 1px solid rgba(0, 255, 0, 0.2);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
         }
-        
+
         .chart-card h3 {
-            margin-bottom: 20px;
-            color: var(--primary);
-            text-align: center;
-            font-size: 1.2em;
+            margin-bottom: 12px;
+            color: #111827;
+            text-align: left;
+            font-size: 1em;
+            font-weight: 600;
         }
         
         .news-panel {
-            background: var(--bg-card);
-            padding: 25px;
+            background: var(--card);
+            padding: 18px 20px;
             border-radius: 12px;
-            margin-top: 30px;
-            border: 1px solid rgba(0, 255, 0, 0.2);
+            margin-top: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
         }
-        
+
         .news-panel h3 {
-            color: var(--primary);
-            margin-bottom: 20px;
+            color: #111827;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-weight: 600;
         }
-        
+
         .news-source {
-            background: rgba(0, 255, 0, 0.1);
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border-left: 4px solid var(--primary);
-            transition: all 0.3s ease;
+            background: #f9fafb;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, border-color 0.2s ease;
         }
-        
+
         .news-source:hover {
-            background: rgba(0, 255, 0, 0.2);
-            transform: translateX(5px);
+            transform: translateX(3px);
+            border-color: rgba(34, 197, 94, 0.4);
         }
-        
+
         .news-source .source-url {
-            color: #aaa;
-            font-size: 0.9em;
+            color: var(--muted);
+            font-size: 0.88em;
             word-break: break-all;
         }
         
@@ -263,18 +212,18 @@
         
         .add-source input {
             flex: 1;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(0, 255, 0, 0.3);
-            border-radius: 6px;
-            color: white;
-            font-family: 'Courier New', monospace;
+            padding: 10px 12px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
         }
-        
+
         .add-source input:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            border-color: rgba(46, 125, 246, 0.7);
+            box-shadow: 0 0 0 3px rgba(46, 125, 246, 0.18);
         }
         
         .trade-log {
@@ -284,22 +233,22 @@
         }
         
         .trade-item {
-            background: rgba(0, 255, 0, 0.05);
-            padding: 15px;
+            background: #f9fafb;
+            padding: 12px;
             margin: 8px 0;
-            border-radius: 8px;
-            border-left: 4px solid;
+            border-radius: 10px;
+            border: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .trade-item.profit {
-            border-left-color: var(--primary);
+            border-color: rgba(34, 197, 94, 0.5);
         }
-        
+
         .trade-item.loss {
-            border-left-color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.5);
         }
         
         .position {
@@ -309,15 +258,8 @@
             font-weight: bold;
         }
         
-        .position.long {
-            background: rgba(0, 255, 0, 0.2);
-            color: var(--primary);
-        }
-        
-        .position.short {
-            background: rgba(255, 0, 255, 0.2);
-            color: var(--accent);
-        }
+        .position.long { background: #dcfce7; color: #166534; }
+        .position.short { background: #dbeafe; color: #1e40af; }
         
         .timestamp {
             color: #888;
@@ -330,10 +272,10 @@
         
         footer {
             text-align: center;
-            margin-top: 40px;
-            padding: 20px;
-            color: #666;
-            border-top: 1px solid rgba(0, 255, 0, 0.1);
+            margin-top: 28px;
+            padding: 16px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
         }
         
         @media (max-width: 768px) {
@@ -358,9 +300,9 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 AI TRADING AGENT - SURVIVAL MODE</h1>
-            <p>💵 Started with $50 • ⏰ 10-minute cycles • 🧠 Claude API • ⚡ Rust • 💀 Pay for yourself or DIE</p>
-            <p style="margin-top: 10px; color: var(--accent);">Scans 500-1000 markets • Finds >8% mispricing • Kelly Criterion • Max 6% bankroll</p>
+            <h1>AI Trading Dashboard</h1>
+            <p>Starting balance $50 • 1-5 minute cycles • LLM-assisted signals • Automated execution</p>
+            <p style="margin-top: 6px; color: var(--muted);">Scans 500-1000 markets • Mispricing threshold ≥ 8% • Kelly sizing • Max 6% bankroll</p>
         </div>
 
         <div class="status-grid">
@@ -394,22 +336,29 @@
                 <div id="winRate">Win Rate: 0%</div>
             </div>
             
-            <div class="status-card test-mode" id="testModeCard">
-                <h3>MODE</h3>
-                <div class="status-value warning" id="testMode">TEST</div>
-                <div id="modeSub">Click to toggle</div>
-            </div>
-
             <div class="status-card" id="simulationCard">
                 <h3>MARKETS</h3>
                 <div class="status-value" id="simulationMode">SIM</div>
                 <div id="simulationSub">Fake money</div>
             </div>
+
+            <div class="status-card" id="runCard">
+                <h3>TRADING</h3>
+                <div class="status-value" id="runStatus">RUNNING</div>
+                <div id="runSub">Auto trade loop</div>
+            </div>
+
+            <div class="status-card" id="prefCard">
+                <h3>PREFERENCES</h3>
+                <div class="status-value" id="prefValue">ALL</div>
+                <div id="prefSub">No filters</div>
+            </div>
         </div>
 
         <div class="controls">
-            <button onclick="toggleTestMode()">🔄 TOGGLE TEST MODE</button>
             <button onclick="toggleSimulation()">🧪 TOGGLE SIMULATION</button>
+            <button onclick="toggleRunning()">⏯️ START/STOP TRADING</button>
+            <button class="secondary" onclick="simulateDay()">📅 SIMULATE DAY</button>
             <button onclick="forceTrade()">🎮 FORCE TEST TRADE</button>
             <button onclick="addNewsSource()">📰 ADD NEWS SOURCE</button>
             <button class="warning" onclick="resetAgent()">🔄 RESET AGENT ($50)</button>
@@ -425,6 +374,10 @@
                 <h3>📈 PROFIT/LOSS PER TRADE</h3>
                 <canvas id="performanceChart"></canvas>
             </div>
+            <div class="chart-card">
+                <h3>🕯️ TRADE PRICE (CANDLE)</h3>
+                <canvas id="candleChart"></canvas>
+            </div>
         </div>
 
         <div class="news-panel">
@@ -432,22 +385,13 @@
                 <span>📰 NEWS SOURCES</span>
                 <span id="newsCount">0 sources</span>
             </h3>
+            <div class="add-source" style="margin-bottom: 10px;">
+                <input type="text" id="newsSearch" placeholder="Search news outlets..." oninput="filterNewsSources()">
+            </div>
             <div id="sourcesList">
                 <div class="news-source">
-                    <div>🌐 Financial News API</div>
-                    <div class="source-url">https://newsapi.org/v2/everything?q=finance</div>
-                </div>
-                <div class="news-source">
-                    <div>📊 Market Data</div>
-                    <div class="source-url">https://newsapi.org/v2/everything?q=stock+market</div>
-                </div>
-                <div class="news-source">
-                    <div>₿ Crypto News</div>
-                    <div class="source-url">https://newsapi.org/v2/everything?q=crypto+currency</div>
-                </div>
-                <div class="news-source">
-                    <div>🌍 Economy</div>
-                    <div class="source-url">https://newsapi.org/v2/everything?q=economy</div>
+                    <div>Loading sources...</div>
+                    <div class="source-url">Please wait</div>
                 </div>
             </div>
             
@@ -487,6 +431,18 @@
 
         <div class="news-panel">
             <h3>
+                <span>🧩 AI DECISION LOG</span>
+                <span id="thoughtsCount">0 entries</span>
+            </h3>
+            <div id="thoughtsLog" class="trade-log">
+                <div class="trade-item">
+                    <div>Waiting for decisions...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="news-panel">
+            <h3>
                 <span>📝 RECENT TRADES</span>
                 <span id="tradeCount">0 trades</span>
             </h3>
@@ -497,17 +453,41 @@
             </div>
         </div>
 
+        <div class="news-panel">
+            <h3>
+                <span>📦 HOLDINGS SUMMARY</span>
+                <span id="holdingsCount">0 holdings</span>
+            </h3>
+            <div class="trade-log" id="holdingsLog">
+                <div class="trade-item">
+                    <div>No holdings yet...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="news-panel">
+            <h3>
+                <span>💹 PROFIT / LOSS</span>
+                <span id="profitLossCount">0 entries</span>
+            </h3>
+            <div class="trade-log" id="profitLossLog">
+                <div class="trade-item">
+                    <div>No P/L yet...</div>
+                </div>
+            </div>
+        </div>
+
         <footer>
             <p>🤖 AI Trading Agent v1.0 • Built with Rust • Claude API • Survival Mode</p>
             <p style="margin-top: 10px; font-size: 0.9em; color: #444;">
-                Every 10 minutes: Scans 500-1000 markets → Builds fair value estimate → Finds >8% mispricing → Kelly Criterion → Executes → Pays API bill from profits
+                Every 1-5 minutes: Scans 500-1000 markets → Builds fair value estimate → Finds >8% mispricing → Kelly Criterion → Executes → Pays API bill from profits
             </p>
         </footer>
     </div>
 
     <script>
         // Global variables
-        let balanceChart, performanceChart;
+        let balanceChart, performanceChart, candleChart;
         let balanceHistory = [];
         let profitHistory = [];
         let tradeHistory = [];
@@ -517,9 +497,16 @@
 
         // Initialize charts
         function initCharts() {
-            const balanceCtx = document.getElementById('balanceChart').getContext('2d');
-            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
-            
+            const balanceCanvas = document.getElementById('balanceChart');
+            const performanceCanvas = document.getElementById('performanceChart');
+
+            if (!balanceCanvas || !performanceCanvas || typeof Chart === 'undefined') {
+                return;
+            }
+
+            const balanceCtx = balanceCanvas.getContext('2d');
+            const performanceCtx = performanceCanvas.getContext('2d');
+
             balanceChart = new Chart(balanceCtx, {
                 type: 'line',
                 data: {
@@ -618,6 +605,45 @@
                     }
                 }
             });
+
+            const candleCanvas = document.getElementById('candleChart');
+            if (!candleCanvas) {
+                return;
+            }
+
+            try {
+                const candleCtx = candleCanvas.getContext('2d');
+                const candleType = Chart?.registry?.getController('candlestick') ? 'candlestick' : 'line';
+                candleChart = new Chart(candleCtx, {
+                    type: candleType,
+                    data: {
+                        datasets: [{
+                            label: 'Trade Price',
+                            data: [],
+                            borderColor: '#00ff00',
+                            backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                            color: {
+                                up: '#00ff00',
+                                down: '#ff0000',
+                                unchanged: '#888'
+                            }
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: true },
+                            y: {
+                                display: true,
+                                title: { display: true, text: 'Price ($)' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.warn('Candle chart init failed:', error);
+            }
         }
 
         // Update dashboard data
@@ -629,6 +655,14 @@
                 const trades = await tradesResponse.json();
                 const newsResponse = await fetch('/api/news');
                 const news = await newsResponse.json();
+                const sourcesResponse = await fetch('/api/news-sources');
+                const sources = await sourcesResponse.json();
+                const thoughtsResponse = await fetch('/api/thoughts');
+                const thoughts = await thoughtsResponse.json();
+                const holdingsResponse = await fetch('/api/portfolio');
+                const holdings = await holdingsResponse.json();
+                const profitLossResponse = await fetch('/api/profit-loss');
+                const profitLoss = await profitLossResponse.json();
                 
                 // Update main stats
                 document.getElementById('balance').textContent = `$${data.balance.toFixed(2)}`;
@@ -652,19 +686,6 @@
                 }
                 document.getElementById('statusSub').textContent = `Cycles: ${data.cycle_count}`;
                 
-                // Update test mode
-                const testModeCard = document.getElementById('testModeCard');
-                const testModeElement = document.getElementById('testMode');
-                if (data.is_test_mode) {
-                    testModeElement.textContent = 'TEST';
-                    testModeElement.className = 'status-value warning';
-                    testModeCard.className = 'status-card test-mode';
-                } else {
-                    testModeElement.textContent = 'REAL';
-                    testModeElement.className = 'status-value profit';
-                    testModeCard.className = 'status-card';
-                }
-
                 // Update simulation mode
                 const simulationCard = document.getElementById('simulationCard');
                 const simulationElement = document.getElementById('simulationMode');
@@ -678,6 +699,32 @@
                     simulationElement.className = 'status-value profit';
                     simulationCard.className = 'status-card';
                     document.getElementById('simulationSub').textContent = 'Live markets';
+                }
+
+                // Update running state
+                const runCard = document.getElementById('runCard');
+                const runStatus = document.getElementById('runStatus');
+                if (data.is_paused) {
+                    runStatus.textContent = 'PAUSED';
+                    runStatus.className = 'status-value warning';
+                    runCard.className = 'status-card test-mode';
+                    document.getElementById('runSub').textContent = 'Trading paused';
+                } else {
+                    runStatus.textContent = 'RUNNING';
+                    runStatus.className = 'status-value profit';
+                    runCard.className = 'status-card';
+                    document.getElementById('runSub').textContent = 'Auto trade loop';
+                }
+
+                // Update preferences
+                const prefValue = document.getElementById('prefValue');
+                const prefSub = document.getElementById('prefSub');
+                if (data.preferred_categories && data.preferred_categories.length > 0) {
+                    prefValue.textContent = data.preferred_categories.join(', ');
+                    prefSub.textContent = 'Filtered markets';
+                } else {
+                    prefValue.textContent = 'ALL';
+                    prefSub.textContent = 'No filters';
                 }
                 
                 // Calculate changes
@@ -711,6 +758,10 @@
                 updateTradeHistory(trades);
 
                 updateNewsFeed(news);
+                updateNewsSources(sources);
+                updateThoughts(thoughts);
+                updateHoldings(holdings);
+                updateProfitLoss(profitLoss);
                 
             } catch (error) {
                 console.error('Failed to update dashboard:', error);
@@ -753,6 +804,26 @@
                 p >= 0 ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)'
             );
             performanceChart.update('none');
+
+            // Update candle chart from trades (entry/exit as OHLC)
+            const candleData = sortedTrades.slice(-60).map(trade => {
+                const open = trade.entry_price || 0;
+                const close = trade.exit_price || trade.entry_price || 0;
+                const high = Math.max(open, close);
+                const low = Math.min(open, close);
+                return {
+                    x: trade.timestamp,
+                    o: open,
+                    h: high,
+                    l: low,
+                    c: close,
+                    y: close
+                };
+            });
+            if (candleChart) {
+                candleChart.data.datasets[0].data = candleData;
+                candleChart.update('none');
+            }
         }
 
         // Update trade history
@@ -820,19 +891,125 @@
             newsFeedCount.textContent = `${recentNews.length} articles`;
         }
 
-        // Control functions
-        async function toggleTestMode() {
-            try {
-                const response = await fetch('/api/toggle-test', { method: 'POST' });
-                const result = await response.json();
-                showNotification(`Test mode: ${result.test_mode ? 'ON' : 'OFF'}`);
-                updateDashboard();
-            } catch (error) {
-                console.error('Failed to toggle test mode:', error);
-                showNotification('Error toggling test mode', 'error');
-            }
+        let cachedSources = [];
+        function updateNewsSources(sources) {
+            cachedSources = sources || [];
+            renderNewsSources(cachedSources);
         }
 
+        function renderNewsSources(sources) {
+            const sourcesList = document.getElementById('sourcesList');
+            sourcesList.innerHTML = '';
+            if (!sources || sources.length === 0) {
+                sourcesList.innerHTML = '<div class="news-source"><div>No sources yet...</div><div class="source-url">Add one above</div></div>';
+                document.getElementById('newsCount').textContent = '0 sources';
+                return;
+            }
+
+            sources.forEach(source => {
+                const item = document.createElement('div');
+                item.className = 'news-source';
+                item.innerHTML = `
+                    <div>📰 News Source</div>
+                    <div class="source-url">${source}</div>
+                `;
+                sourcesList.appendChild(item);
+            });
+            document.getElementById('newsCount').textContent = `${sources.length} sources`;
+        }
+
+        function filterNewsSources() {
+            const query = document.getElementById('newsSearch').value.toLowerCase().trim();
+            if (!query) {
+                renderNewsSources(cachedSources);
+                return;
+            }
+            const filtered = cachedSources.filter(source => source.toLowerCase().includes(query));
+            renderNewsSources(filtered);
+        }
+
+        function updateThoughts(thoughts) {
+            const thoughtsLog = document.getElementById('thoughtsLog');
+            thoughtsLog.innerHTML = '';
+
+            if (!thoughts || thoughts.length === 0) {
+                thoughtsLog.innerHTML = '<div class="trade-item"><div>No decisions yet...</div></div>';
+                document.getElementById('thoughtsCount').textContent = '0 entries';
+                return;
+            }
+
+            const recent = thoughts.slice(-12).reverse();
+            recent.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'trade-item';
+                item.innerHTML = `<div>${entry}</div>`;
+                thoughtsLog.appendChild(item);
+            });
+            document.getElementById('thoughtsCount').textContent = `${thoughts.length} entries`;
+        }
+
+        function updateHoldings(holdings) {
+            const holdingsLog = document.getElementById('holdingsLog');
+            holdingsLog.innerHTML = '';
+
+            if (!holdings || holdings.length === 0) {
+                holdingsLog.innerHTML = '<div class="trade-item"><div>No holdings yet...</div></div>';
+                document.getElementById('holdingsCount').textContent = '0 holdings';
+                return;
+            }
+
+            holdings.slice(0, 12).forEach(holding => {
+                const isProfit = holding.net_profit_loss >= 0;
+                const item = document.createElement('div');
+                item.className = `trade-item ${isProfit ? 'profit' : 'loss'}`;
+                item.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">${holding.market_name}</div>
+                        <div class="source-url">Trades: ${holding.trades}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="amount">${holding.net_amount.toFixed(2)}</div>
+                        <div class="amount ${isProfit ? 'profit' : 'loss'}">${isProfit ? '+' : ''}$${holding.net_profit_loss.toFixed(2)}</div>
+                    </div>
+                `;
+                holdingsLog.appendChild(item);
+            });
+
+            document.getElementById('holdingsCount').textContent = `${holdings.length} holdings`;
+        }
+
+        function updateProfitLoss(items) {
+            const profitLossLog = document.getElementById('profitLossLog');
+            profitLossLog.innerHTML = '';
+
+            if (!items || items.length === 0) {
+                profitLossLog.innerHTML = '<div class="trade-item"><div>No P/L yet...</div></div>';
+                document.getElementById('profitLossCount').textContent = '0 entries';
+                return;
+            }
+
+            items.slice(0, 20).forEach(item => {
+                const isProfit = item.profit_loss >= 0;
+                const date = DateTime.fromISO(item.timestamp).toLocaleString(DateTime.DATETIME_MED);
+                const row = document.createElement('div');
+                row.className = `trade-item ${isProfit ? 'profit' : 'loss'}`;
+                row.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">${item.market_name}</div>
+                        <div class="source-url">${date}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="amount">$${item.amount.toFixed(2)}</div>
+                        <div class="amount ${isProfit ? 'profit' : 'loss'}">${isProfit ? '+' : ''}$${item.profit_loss.toFixed(2)}</div>
+                    </div>
+                `;
+                profitLossLog.appendChild(row);
+            });
+
+            document.getElementById('profitLossCount').textContent = `${items.length} entries`;
+        }
+
+        // Control functions
         async function toggleSimulation() {
             try {
                 const response = await fetch('/api/toggle-sim', { method: 'POST' });
@@ -842,6 +1019,30 @@
             } catch (error) {
                 console.error('Failed to toggle simulation:', error);
                 showNotification('Error toggling simulation', 'error');
+            }
+        }
+
+        async function toggleRunning() {
+            try {
+                const response = await fetch('/api/toggle-run', { method: 'POST' });
+                const result = await response.json();
+                showNotification(`Trading: ${result.is_paused ? 'PAUSED' : 'RUNNING'}`);
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to toggle trading:', error);
+                showNotification('Error toggling trading', 'error');
+            }
+        }
+
+        async function simulateDay() {
+            try {
+                const response = await fetch('/api/simulate-day', { method: 'POST' });
+                const result = await response.json();
+                showNotification(`Simulated day complete: ${result.trades} trades`);
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to simulate day:', error);
+                showNotification('Error simulating day', 'error');
             }
         }
 
@@ -1019,8 +1220,6 @@
             // Update every 5 seconds
             setInterval(updateDashboard, 5000);
             
-            // Update trade history every 30 seconds
-            setInterval(updateTradeHistory, 30000);
         };
     </script>
 </body>
